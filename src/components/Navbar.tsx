@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useAuthContext } from "@/context/AuthContext"; // Assuming AuthContext provides the user and logout function
 import { useRouter } from 'next/navigation';
-import logout from "@/firebase/auth/logout";
+import { logout } from "@/firebase/auth/auth";
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
@@ -16,7 +16,12 @@ export default function Navbar() {
 
     const handleLogout = async () => {
         console.log(user);
-        const {success, error} = await logout();
+        const {error} = await logout();
+        if (error) {
+            console.error(error);
+            return;
+        }
+
         router.push("/signin");
     };
 
@@ -33,10 +38,10 @@ export default function Navbar() {
                         <Link href="/" className="text-gray-800 hover:text-indigo-600">
                             Home
                         </Link>
-                        <Link href="/about" className="text-gray-800 hover:text-indigo-600">
+                        <Link href={"/about"} className="text-gray-800 hover:text-indigo-600">
                             About
                         </Link>
-                        <Link href="/contact" className="text-gray-800 hover:text-indigo-600">
+                        <Link href={"/contact"} className="text-gray-800 hover:text-indigo-600">
                             Contact
                         </Link>
                         {user?.user ? (
@@ -51,10 +56,10 @@ export default function Navbar() {
                             </div>
                         ) : (
                             <>
-                                <Link href="/signin" className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">
+                                <Link href={"/signin"} className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">
                                     Sign In
                                 </Link>
-                                <Link href="/signup" className="bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700">
+                                <Link href={"/signup"} className="bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700">
                                     Sign Up
                                 </Link>
                             </>
@@ -88,10 +93,10 @@ export default function Navbar() {
                         <Link href="/" className="block text-gray-800 hover:text-indigo-600 py-2">
                             Home
                         </Link>
-                        <Link href="/about" className="block text-gray-800 hover:text-indigo-600 py-2">
+                        <Link href={"/about"} className="block text-gray-800 hover:text-indigo-600 py-2">
                             About
                         </Link>
-                        <Link href="/contact" className="block text-gray-800 hover:text-indigo-600 py-2">
+                        <Link href={"/contact"} className="block text-gray-800 hover:text-indigo-600 py-2">
                             Contact
                         </Link>
                         {user?.user ? (
@@ -106,10 +111,10 @@ export default function Navbar() {
                             </div>
                         ) : (
                             <>
-                                <Link href="/signin" className="block bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">
+                                <Link href={"/signin"} className="block bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">
                                     Sign In
                                 </Link>
-                                <Link href="/signup" className="block bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700">
+                                <Link href={"/signup"} className="block bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700">
                                     Sign Up
                                 </Link>
                             </>
