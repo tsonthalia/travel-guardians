@@ -44,6 +44,7 @@ export const AuthContextProvider = ({ children }: AuthContextProviderProps) => {
                 setUserData(fetchedUserData);
             } catch (e) {
                 console.error(e);
+                await auth.signOut();
             }
 
             setLoading(false);
