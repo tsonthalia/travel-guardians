@@ -6,7 +6,7 @@ import {
     connectFirestoreEmulator,
     addDoc,
     updateDoc,
-    getDoc, setDoc
+    getDoc, setDoc, initializeFirestore
 } from 'firebase/firestore';
 import firebase_app from '@/firebase/config';
 
@@ -14,11 +14,11 @@ import { Scam, ScamData, UserData } from './interfaces';
 import {FirebaseError} from "firebase/app";
 
 // Initialize Firestore
-const db = getFirestore(firebase_app);
+const db = initializeFirestore(firebase_app, {experimentalForceLongPolling: true})
 const env = process.env.NODE_ENV;
-if (env === 'development') {
-    connectFirestoreEmulator(db, '127.0.0.1', 8080);
-}
+// if (env === 'development') {
+//     connectFirestoreEmulator(db, '127.0.0.1', 8080);
+// }
 
 export async function getUserData(uid: string) {
     const usersCollectionRef = collection(db, 'users');
