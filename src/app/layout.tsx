@@ -1,7 +1,7 @@
 'use client';
 import { Inter } from "next/font/google";
 import { AuthContextProvider } from "@/context/AuthContext";
-import Navbar from "@/components/Navbar";
+import Navbar from "@/components/Navbar/Navbar";
 import "./globals.css";
 import Footer from "@/components/Footer";
 
@@ -15,14 +15,18 @@ export default function RootLayout({
     return (
         <html lang="en">
             <body className={inter.className}>
-                <AuthContextProvider>
-                    <Navbar />
-                    {children}
-                    <Footer />
-                </AuthContextProvider>
+            <AuthContextProvider>
+                <div className="flex flex-col min-h-screen">
+                    <Navbar/>
+                    <main className="flex-grow flex flex-col">
+                        {children}
+                    </main>
+                    <Footer/>
+                </div>
+            </AuthContextProvider>
             </body>
         </html>
-    );
+);
 }
 
 

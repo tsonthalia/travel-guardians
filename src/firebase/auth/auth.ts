@@ -8,31 +8,32 @@ import {
 } from "firebase/auth";
 import { SignInResult, LogoutResult } from "./interfaces";
 import { FirebaseError } from "firebase/app";
+import {collection} from "firebase/firestore";
 // Initialize authentication
 const auth = getAuth(firebase_app);
 
 // Define the signIn function with proper typing
 export async function signIn(email: string, password: string): Promise<SignInResult> {
     let result: UserCredential | null = null;
-    let error: FirebaseError | null = null;
+    let authError: FirebaseError | null = null;
 
     try {
         result = await signInWithEmailAndPassword(auth, email, password);
     } catch (e) {
         if (e instanceof FirebaseError) {
-            error = e;
+            authError = e;
         } else {
-            error = new FirebaseError('unknown/error', 'An unknown error occurred.');
+            authError = new FirebaseError('unknown/error', 'An unknown error occurred.');
         }
     }
 
-    return { result, error };
+    return { result, authError };
 }
 
 // Define the signUp function with proper typing
 export async function signUp(email: string, password: string, displayName: string): Promise<SignInResult> {
     let result: UserCredential | null = null;
-    let error: FirebaseError | null = null;
+    let authError: FirebaseError | null = null;
 
     try {
         result = await createUserWithEmailAndPassword(auth, email, password);
@@ -45,30 +46,30 @@ export async function signUp(email: string, password: string, displayName: strin
         }
     } catch (e) {
         if (e instanceof FirebaseError) {
-            error = e;
+            authError = e;
         } else {
-            error = new FirebaseError('unknown/error', 'An unknown error occurred.');
+            authError = new FirebaseError('unknown/error', 'An unknown error occurred.');
         }
     }
 
-    return { result, error };
+    return { result, authError };
 }
 
 // Define the logout function with proper typing
 export async function logout(): Promise<LogoutResult> {
     let success = false;
-    let error: FirebaseError | null = null;
+    let authError: FirebaseError | null = null;
 
     try {
         await signOut(auth);
         success = true;
     } catch (e) {
         if (e instanceof FirebaseError) {
-            error = e;
+            authError = e;
         } else {
-            error = new FirebaseError('unknown/error', 'An unknown error occurred during logout.');
+            authError = new FirebaseError('unknown/error', 'An unknown error occurred during logout.');
         }
     }
 
-    return { success, error };
+    return { success, authError };
 }
