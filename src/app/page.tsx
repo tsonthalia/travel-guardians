@@ -72,7 +72,7 @@ export default function Feed() {
           <section className="py-12">
             <div className="container mx-auto px-6">
               <div className="grid grid-cols-1 gap-8 max-w-2xl mx-auto">
-                {feed.length == 0 ? "Loading..." : feed.map((scam) => (
+                {feed.length == 0 ? "Loading..." : feed.sort((a, b) => b.netvotes - a.netvotes).map((scam) => (
                     <div key={scam.id} className="bg-gray-100 p-6 rounded-lg shadow-lg relative">
                       {/* Upvote/Downvote Section */}
                       <UpvoteDownvoteSelector
