@@ -21,10 +21,10 @@ export default function Page() {
     const handleForm = async (event: any) => {
         event.preventDefault();
 
-        const {result, error} = await signIn(email, password);
+        const {result, authError} = await signIn(email, password);
 
-        if (error) {
-            return console.log(error);
+        if (authError) {
+            return console.log(authError);
         }
 
         // else successful
@@ -32,7 +32,7 @@ export default function Page() {
         return router.push("/");
     }
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="flex flex-col flex-grow pt-10 pb-10 items-center justify-center bg-gray-100">
             <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
                 <h1 className="text-3xl font-bold text-center mb-6">Sign In</h1>
                 <form onSubmit={handleForm} className="space-y-6">

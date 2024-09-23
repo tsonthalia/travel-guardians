@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from "react";
 import { signUp } from "@/firebase/auth/auth";
+import { createUserDocument } from "@/firebase/firestore/firestore";
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {useAuthContext} from "@/context/AuthContext";
@@ -8,6 +9,7 @@ import {useAuthContext} from "@/context/AuthContext";
 export default function Page() {
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
+    const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -33,21 +35,26 @@ export default function Page() {
             return;
         }
 
-        const displayName = `${firstName} ${lastName}`;
-        const {result, error} = await signUp(email, password, displayName);
+        const {result, authError} = await signUp(email, password, username);
 
-        if (error) {
-            setErrorMessage(error.message || "An error occurred during sign-up.");
+        if (authError || !result?.user?.uid) {
+            setErrorMessage(authError?.message || "An error occurred during sign-up.");
+            return;
+        }
+
+        const dbError = await createUserDocument(result.user.uid, username, firstName, lastName, email);
+
+        if (dbError) {
+            setErrorMessage(dbError.message || "An error occurred while creating your account.");
             return;
         }
 
         // Successful sign-up
-        console.log(result);
         return router.push("/");
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="flex flex-col flex-grow pt-10 pb-10 items-center justify-center bg-gray-100">
             <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
                 <h1 className="text-3xl font-bold text-center mb-6">Sign Up</h1>
                 <form onSubmit={handleForm} className="space-y-6">
@@ -76,6 +83,20 @@ export default function Page() {
                             name="lastName"
                             id="lastName"
                             placeholder="Doe"
+                            className="mt-1 p-3 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                            Username
+                        </label>
+                        <input
+                            onChange={(e) => setUsername(e.target.value)}
+                            required
+                            type="text"
+                            name="username"
+                            id="username"
+                            placeholder="johndoe"
                             className="mt-1 p-3 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                         />
                     </div>
