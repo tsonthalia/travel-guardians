@@ -6,7 +6,7 @@ import {
     connectFirestoreEmulator,
     addDoc,
     updateDoc,
-    getDoc, setDoc, initializeFirestore
+    getDoc, setDoc,
 } from 'firebase/firestore';
 import firebase_app from '@/firebase/config';
 
@@ -14,11 +14,11 @@ import { Scam, ScamData, UserData } from './interfaces';
 import {FirebaseError} from "firebase/app";
 
 // Initialize Firestore
-const db = initializeFirestore(firebase_app, {experimentalForceLongPolling: true})
+const db = getFirestore(firebase_app)
 const env = process.env.NODE_ENV;
-// if (env === 'development') {
-//     connectFirestoreEmulator(db, '127.0.0.1', 8080);
-// }
+if (env === 'development') {
+    connectFirestoreEmulator(db, '127.0.0.1', 8080);
+}
 
 export async function getUserData(uid: string) {
     const usersCollectionRef = collection(db, 'users');
@@ -78,8 +78,8 @@ export async function getFeed() {
             date: data.date.toDate(),
             user: data.user,
             uid: data.uid,
-            upvotes: data?.upvotes ?? 0,
-            downvotes: data?.downvotes ?? 0,
+            upvotes: data?.upvotes.length ?? 0,
+            downvotes: data?.downvotes.length ?? 0,
             netvotes: data?.netvotes ?? 0,
         });
 
@@ -101,8 +101,8 @@ export async function createPost(title: string, description: string, city: strin
         date: date,
         user: username,
         uid: uid,
-        upvotes: 0,
-        downvotes: 0,
+        upvotes: [],
+        downvotes: [],
         netvotes: 0,
     };
 
@@ -147,13 +147,13 @@ export async function upvotePressed(scam_id: string, uid: string) {
 
     const { upvotedScams, downvotedScams } = userDoc.data();
 
-    let isUpvoted = false;
+    let isUpvoted: boolean;
 
     let newDownvotedScams = downvotedScams;
     let newUpvotedScams = upvotedScams;
-    let newScamDownvotes = downvotes;
-    let newScamUpvotes = upvotes;
-    let newScamNetvotes = upvotes - downvotes;
+    let newScamDownvotes: string[] = downvotes;
+    let newScamUpvotes: string[] = upvotes;
+    let newScamNetvotes: number = upvotes - downvotes;
 
     if (downvotedScams.includes(scam_id)) {
         newDownvotedScams = downvotedScams.filter((id: string) => id !== scam_id);
@@ -163,9 +163,9 @@ export async function upvotePressed(scam_id: string, uid: string) {
             upvotedScams: newUpvotedScams,
         });
 
-        newScamDownvotes = downvotes - 1;
-        newScamUpvotes = upvotes + 1;
-        newScamNetvotes = upvotes - downvotes + 2;
+        newScamDownvotes = downvotes.filter((id: string) => id !== uid);
+        newScamUpvotes = [...upvotes, uid]
+        newScamNetvotes = upvotes.length - downvotes.length + 2;
         await updateDoc(scamDocRef, {
             downvotes: newScamDownvotes,
             upvotes: newScamUpvotes,
@@ -179,8 +179,8 @@ export async function upvotePressed(scam_id: string, uid: string) {
             upvotedScams: newUpvotedScams,
         });
 
-        newScamUpvotes = upvotes - 1;
-        newScamNetvotes = upvotes - downvotes - 1;
+        newScamUpvotes = upvotes.filter((id: string) => id !== uid);
+        newScamNetvotes = upvotes.length - downvotes.length - 1;
         await updateDoc(scamDocRef, {
             upvotes: newScamUpvotes,
             netvotes: newScamNetvotes,
@@ -193,8 +193,8 @@ export async function upvotePressed(scam_id: string, uid: string) {
             upvotedScams: newUpvotedScams,
         });
 
-        newScamUpvotes = upvotes + 1;
-        newScamNetvotes = upvotes - downvotes + 1;
+        newScamUpvotes = [...upvotes, uid];
+        newScamNetvotes = upvotes.length - downvotes.length + 1;
         await updateDoc(scamDocRef, {
             upvotes: newScamUpvotes,
             netvotes: newScamNetvotes,
@@ -221,8 +221,8 @@ export async function downvotePressed(scam_id: string, uid: string) {
 
     let newDownvotedScams = downvotedScams;
     let newUpvotedScams = upvotedScams;
-    let newScamDownvotes = downvotes;
-    let newScamUpvotes = upvotes;
+    let newScamDownvotes: string[] = downvotes;
+    let newScamUpvotes: string[] = upvotes;
     let newScamNetvotes = upvotes - downvotes;
 
     if (upvotedScams.includes(scam_id)) {
@@ -233,9 +233,9 @@ export async function downvotePressed(scam_id: string, uid: string) {
             downvotedScams: newDownvotedScams,
         });
 
-        newScamUpvotes = upvotes - 1;
-        newScamDownvotes = downvotes + 1;
-        newScamNetvotes = upvotes - downvotes - 2;
+        newScamUpvotes = upvotes.filter((id: string) => id !== uid);
+        newScamDownvotes = [...downvotes, uid]
+        newScamNetvotes = upvotes.length - downvotes.length - 2;
         await updateDoc(scamDocRef, {
             upvotes: newScamUpvotes,
             downvotes: newScamDownvotes,
@@ -249,8 +249,8 @@ export async function downvotePressed(scam_id: string, uid: string) {
             downvotedScams: newDownvotedScams,
         });
 
-        newScamDownvotes = downvotes - 1;
-        newScamNetvotes = upvotes - downvotes + 1;
+        newScamDownvotes = downvotes.filter((id: string) => id !== uid);
+        newScamNetvotes = upvotes.length - downvotes.length + 1;
         await updateDoc(scamDocRef, {
             downvotes: newScamDownvotes,
             netvotes: newScamNetvotes,
@@ -263,8 +263,8 @@ export async function downvotePressed(scam_id: string, uid: string) {
             downvotedScams: newDownvotedScams,
         });
 
-        newScamDownvotes = downvotes + 1;
-        newScamNetvotes = upvotes - downvotes - 1;
+        newScamDownvotes = [...downvotes, uid];
+        newScamNetvotes = upvotes.length - downvotes.length - 1;
         await updateDoc(scamDocRef, {
             downvotes: newScamDownvotes,
             netvotes: newScamNetvotes,

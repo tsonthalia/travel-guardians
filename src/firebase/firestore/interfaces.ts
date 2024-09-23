@@ -1,4 +1,4 @@
-export interface ScamData {
+export interface ScamBase {
     title: string;
     description: string;
     city: string;
@@ -8,13 +8,18 @@ export interface ScamData {
     date: Date; // Change date type to Date object
     user: string;
     uid: string;
-    upvotes: number;
-    downvotes: number;
     netvotes: number;
 }
 
-export interface Scam extends ScamData {
-    id: string
+export interface ScamData extends ScamBase {
+    upvotes: string[];
+    downvotes: string[];
+}
+
+export interface Scam extends ScamBase {
+    id: string;
+    upvotes: number;
+    downvotes: number;
 }
 
 export interface UserData {
