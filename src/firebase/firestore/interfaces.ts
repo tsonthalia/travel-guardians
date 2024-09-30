@@ -9,6 +9,14 @@ export interface ScamBase {
     user: string;
     uid: string;
     netvotes: number;
+    comments: Comment[],
+}
+
+export interface Comment {
+    user: string;
+    uid: string;
+    date: Date;
+    text: string;
 }
 
 export interface ScamData extends ScamBase {

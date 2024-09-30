@@ -16,9 +16,9 @@ import {FirebaseError} from "firebase/app";
 // Initialize Firestore
 const db = getFirestore(firebase_app)
 const env = process.env.NODE_ENV;
-if (env === 'development') {
-    connectFirestoreEmulator(db, '127.0.0.1', 8080);
-}
+// if (env === 'development') {
+//     connectFirestoreEmulator(db, '127.0.0.1', 8080);
+// }
 
 export async function getUserData(uid: string) {
     const usersCollectionRef = collection(db, 'users');
@@ -81,6 +81,7 @@ export async function getFeed() {
             upvotes: data?.upvotes.length ?? 0,
             downvotes: data?.downvotes.length ?? 0,
             netvotes: data?.netvotes ?? 0,
+            comments: data?.comments ?? [],
         });
 
         scams.push();
@@ -103,6 +104,7 @@ export async function createPost(title: string, description: string, city: strin
         uid: uid,
         upvotes: [],
         downvotes: [],
+        comments: [],
         netvotes: 0,
     };
 
