@@ -1,5 +1,3 @@
-import {useState} from "react";
-
 interface UpvoteDownvoteProps {
     scam_id: string;
     netvotes: number;
