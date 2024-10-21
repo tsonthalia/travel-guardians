@@ -1,3 +1,5 @@
+import { Timestamp } from 'firebase/firestore';
+
 export interface ScamBase {
     title: string;
     description: string;
@@ -9,14 +11,25 @@ export interface ScamBase {
     user: string;
     uid: string;
     netvotes: number;
-    comments: Comment[],
+    comments: number,
 }
 
-export interface Comment {
-    user: string;
+export interface CommentBase {
+    username: string;
     uid: string;
-    date: Date;
-    text: string;
+    comment: string;
+    upvotes: string[],
+    downvotes: string[],
+    netvotes: number,
+}
+
+export interface FirebaseComment extends CommentBase {
+    timestamp: Timestamp;
+}
+
+export interface Comment extends CommentBase{
+    timestamp: Date;
+    id: string;
 }
 
 export interface ScamData extends ScamBase {
@@ -38,4 +51,7 @@ export interface UserData {
     upvotedScams: string[];
     downvotedScams: string[];
     createdPosts: string[];
+    upvotedComments: string[];
+    downvotedComments: string[];
+    comments: string[];
 }

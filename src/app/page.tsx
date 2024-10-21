@@ -4,6 +4,7 @@ import {Scam} from "@/firebase/firestore/interfaces";
 import {downvotePressed, getFeed, upvotePressed} from "@/firebase/firestore/firestore";
 import {useAuthContext} from "@/context/AuthContext";
 import UpvoteDownvoteSelector from "@/components/UpvoteDownvote/UpvoteDownvoteSelector";
+import SelectedScamView from "@/components/SelectedScam/SelectedScamView";
 
 export default function Feed() {
   const [feed, setFeed] = useState<Scam[]>([]);
@@ -53,6 +54,7 @@ export default function Feed() {
 
   const handleUpvote = async (e: any, scam_id: string) => {
     e.preventDefault();
+    e.stopPropagation();
 
     if (!user?.user) {
       console.log("User not logged in");
@@ -69,6 +71,7 @@ export default function Feed() {
 
   const handleDownvote = async (e: any, scam_id: string) => {
     e.preventDefault();
+    e.stopPropagation();
 
     if (!user?.user) {
       console.log("User not logged in");
@@ -94,7 +97,7 @@ export default function Feed() {
     setSelectedScam(null); // Clear the selected post
   };
 
-  function getUpdatedFeed(scam_id: string, newScamNetvotes: number) {
+  const getUpdatedFeed = (scam_id: string, newScamNetvotes: number) => {
     return feed.map((scam) => {
       if (scam.id === scam_id) {
         scam.netvotes = newScamNetvotes;
@@ -155,7 +158,7 @@ export default function Feed() {
 
               <div className="grid grid-cols-1 gap-8 max-w-2xl mx-auto">
                 {filteredFeed.length == 0 ? "No scams found." : filteredFeed.sort((a, b) => b.netvotes - a.netvotes).map((scam) => (
-                    <div key={scam.id} className="bg-gray-100 p-6 rounded-lg shadow-lg relative">
+                    <div key={scam.id} className="bg-gray-100 p-6 rounded-lg shadow-lg relative" onClick={() => handleOpenModal(scam)}>
                       {/* Upvote/Downvote Section */}
                       <UpvoteDownvoteSelector
                           scam_id={scam.id}
@@ -182,13 +185,15 @@ export default function Feed() {
                           <span>{scam.city}, {scam.country}</span>
                         </div>
 
-                        <div className="mt-4 flex items-center text-gray-500" onClick={() => handleOpenModal(scam)}>
+                        <div className="mt-4 flex items-center text-gray-500">
                           <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24"
                                xmlns="http://www.w3.org/2000/svg">
                             <path d="M3 3h18v12H7l-4 4V3z"/>
                             {/* Comments Icon (adjust as needed) */}
                           </svg>
-                          <span>{scam.comments.length} comments</span> {/* Replace with dynamic comment count */}
+
+                          {/* Replace with dynamic comment count */}
+                          <span>{scam.comments || 0} comments</span>
                         </div>
                       </div>
                     </div>
@@ -196,33 +201,14 @@ export default function Feed() {
 
                 {/* Modal for displaying comments */}
                 {isModalOpen && selectedScam && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                      <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full relative">
-                        <button
-                            className="absolute top-0 right-0 p-2 text-gray-500 hover:text-gray-700"
-                            onClick={handleCloseModal}
-                        >
-                          &times; {/* Close button */}
-                        </button>
-
-                        <h3 className="text-xl font-bold text-indigo-600 mb-4">{selectedScam.title}</h3>
-                        <p className="text-gray-700 mb-4">{selectedScam.description}</p>
-
-                        {/* Comments Section */}
-                        <div className="space-y-4">
-                          {selectedScam.comments.length > 0 ? (
-                              selectedScam.comments.map((comment, index) => (
-                                  <div key={index} className="bg-gray-100 p-3 rounded-lg">
-                                    <p className="text-sm text-gray-700">{comment.text}</p>
-                                    <span className="text-xs text-gray-500">— {comment.user}</span>
-                                  </div>
-                              ))
-                          ) : (
-                              <p className="text-sm text-gray-500">No comments yet.</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <SelectedScamView
+                        selectedScam={selectedScam}
+                        handleCloseModal={handleCloseModal}
+                        handleUpvoteScam={handleUpvote}
+                        handleDownvoteScam={handleDownvote}
+                        isUpvoted={upvotedScams.includes(selectedScam.id)}
+                        isDownvoted={downvotedScams.includes(selectedScam.id)}
+                    />
                 )}
               </div>
             </div>
