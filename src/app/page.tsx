@@ -48,7 +48,9 @@ export default function Feed() {
   }, [autocompleteRef]);
 
   const getUniqueLocations = () => {
-    const locations = feed.flatMap(scam => [`${scam.city}, ${scam.country}`, scam.country])
+    const locations = feed.flatMap(scam =>
+        scam.locations.flatMap((location, index) => [`${location.city}, ${location.country}`, location.country])
+    )
     return Array.from(new Set(locations)); // Return unique combinations
   };
 
@@ -107,14 +109,21 @@ export default function Feed() {
   }
 
   const filteredFeed = feed.filter(scam => {
-    return scam.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        scam.country.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        searchQuery.split(" ").some((word) => {
-          return word != "" && (
-              word.toLowerCase().includes(scam.city.toLowerCase()) ||
-              word.toLowerCase().includes(scam.country.toLowerCase())
-          );
-        });
+    // Check if any of the cities or countries match the search query
+    const matchesLocations = scam.locations.some(location => (
+        location.city.toLowerCase().includes(searchQuery.toLowerCase()) || location.country.toLowerCase().includes(searchQuery.toLowerCase()) || location.continent.toLowerCase().includes(searchQuery.toLowerCase())
+    ));
+
+    // Check if the search query has words that match any cities or countries
+    const matchesWords = searchQuery.split(" ").some(word => {
+      return word !== "" && (
+          scam.locations.some(location => (
+              location.city.toLowerCase().includes(searchQuery.toLowerCase()) || location.country.toLowerCase().includes(searchQuery.toLowerCase()) || location.continent.toLowerCase().includes(searchQuery.toLowerCase())
+          ))
+      );
+    });
+
+    return matchesLocations || matchesWords;
   });
 
   const handleUpdateSearchQuery = (query: string) => {
@@ -182,7 +191,7 @@ export default function Feed() {
                           <span className="mx-2">•</span>
                           <span>{scam.date.toDateString()}</span>
                           <span className="mx-2">•</span>
-                          <span>{scam.city}, {scam.country}</span>
+                          <span>{scam.locations[0].city}, {scam.locations[0].country}</span>
                         </div>
 
                         <div className="mt-4 flex items-center text-gray-500">

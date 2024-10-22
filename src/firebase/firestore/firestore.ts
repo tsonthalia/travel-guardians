@@ -10,7 +10,16 @@ import {
 } from 'firebase/firestore';
 import firebase_app from '@/firebase/config';
 
-import {Scam, ScamData, UserData, Comment, FirebaseComment} from './interfaces';
+import {
+    Scam,
+    ScamData,
+    UserData,
+    Comment,
+    FirebaseComment,
+    LocationEntry,
+    CityLocation,
+    LocationBase, LocationType, CountryLocation, ContinentLocation, StateLocation, ScamLocation
+} from './interfaces';
 import {FirebaseError} from "firebase/app";
 import {query} from "@firebase/database";
 
@@ -49,6 +58,7 @@ export async function createUserDocument(uid: string, username: string, firstNam
             upvotedComments: [],
             downvotedComments: [],
             comments: [],
+            followedLocations: [],
         }
 
         await setDoc(doc(usersCollectionRef, uid), newUserData);
@@ -75,10 +85,7 @@ export async function getFeed() {
             id: doc.id,
             title: data.title,
             description: data.description,
-            city: data.city,
-            state: data?.state ?? null,
-            country: data.country,
-            continent: data?.continent ?? null,
+            locations: data.locations,
             date: data.date.toDate(),
             user: data.user,
             uid: data.uid,
@@ -94,15 +101,176 @@ export async function getFeed() {
     return scams;
 }
 
-export async function createPost(title: string, description: string, city: string, country: string, date: Date, username: string, uid: string) {
+export async function createPost(title: string, description: string, locations: LocationEntry[], date: Date, username: string, uid: string) {
+    let formattedLocations: ScamLocation[] = [];
+    for (const location of locations) {
+        if (location.city_id) {
+            formattedLocations.push({
+                type: location.type,
+                city: location.city,
+                state: location?.state ?? null,
+                country: location.country,
+                continent: location.continent,
+                location_id: location.city_id,
+            });
+        } else if (location.state_id) {
+            // get state doc from locations
+            const stateDoc = await getDoc(doc(collection(db, 'locations'), location.state_id));
+            if (!stateDoc.exists()) {
+                throw new Error('State does not exist');
+            }
+
+            const stateDocData = stateDoc.data() as StateLocation;
+            const cityRef = await addDoc(collection(db, 'locations'), {
+                type: LocationType.CITY,
+                city: location.city,
+                state: stateDocData.state,
+                state_id: location.state_id,
+                country: stateDocData.country,
+                country_id: stateDocData.country_id,
+                continent: stateDocData.continent,
+                continent_id: stateDocData.continent_id,
+            });
+
+            formattedLocations.push({
+                type: location.type,
+                city: location.city,
+                state: location.state,
+                country: location.country,
+                continent: location.continent,
+                location_id: cityRef.id,
+            })
+        } else if (location.country_id) {
+            const countryDoc = await getDoc(doc(collection(db, 'locations'), location.country_id));
+            if (!countryDoc.exists()) {
+                throw new Error('Country does not exist');
+            }
+
+            const countryDocData = countryDoc.data() as CountryLocation;
+            const stateRef = await addDoc(collection(db, 'locations'), {
+                type: LocationType.STATE,
+                state: location.state,
+                country: location.country,
+                country_id: location.country_id,
+                continent: countryDocData.continent,
+                continent_id: countryDocData.continent_id,
+            });
+
+            const cityRef = await addDoc(collection(db, 'locations'), {
+                type: LocationType.CITY,
+                city: location.city,
+                state: location.state,
+                state_id: stateRef.id,
+                country: location.country,
+                country_id: location.country_id,
+                continent: countryDocData.continent,
+                continent_id: countryDocData.continent_id,
+            });
+
+            formattedLocations.push({
+                type: location.type,
+                city: location.city,
+                state: location.state,
+                country: location.country,
+                continent: countryDocData.continent,
+                location_id: cityRef.id,
+            })
+        } else if (location.continent_id) {
+            const continentDoc = await getDoc(doc(collection(db, 'locations'), location.continent_id));
+            if (!continentDoc.exists()) {
+                throw new Error('Continent does not exist');
+            }
+
+            const countryRef = await addDoc(collection(db, 'locations'), {
+                type: LocationType.COUNTRY,
+                country: location.country,
+                continent: location.continent,
+                continent_id: location.continent_id,
+            });
+
+            const stateRef = await addDoc(collection(db, 'locations'), {
+                type: LocationType.STATE,
+                state: location.state,
+                country: location.country,
+                country_id: countryRef.id,
+                continent: location.continent,
+                continent_id: location.continent_id,
+            });
+
+            const cityRef = await addDoc(collection(db, 'locations'), {
+                type: LocationType.CITY,
+                city: location.city,
+                state: location.state,
+                state_id: stateRef.id,
+                country: location.country,
+                country_id: countryRef.id,
+                continent: location.continent,
+                continent_id: location.continent_id,
+            });
+
+            formattedLocations.push({
+                type: location.type,
+                city: location.city,
+                state: location.state,
+                country: location.country,
+                continent: location.continent,
+                location_id: cityRef.id,
+            })
+        } else {
+            const continentRef = await addDoc(collection(db, 'locations'), {
+                type: LocationType.CONTINENT,
+                continent: location.continent,
+            });
+
+            const countryRef = await addDoc(collection(db, 'locations'), {
+                type: LocationType.COUNTRY,
+                country: location.country,
+                continent: location.continent,
+                continent_id: continentRef.id,
+            });
+
+            let stateRef;
+
+            if (location.state === null) {
+                stateRef = null;
+            } else {
+                stateRef = await addDoc(collection(db, 'locations'), {
+                    type: LocationType.STATE,
+                    state: location.state,
+                    country: location.country,
+                    country_id: countryRef.id,
+                    continent: location.continent,
+                    continent_id: continentRef.id,
+                });
+            }
+
+            const cityRef = await addDoc(collection(db, 'locations'), {
+                type: LocationType.CITY,
+                city: location.city,
+                state: location.state ?? null,
+                state_id: stateRef?.id ?? null,
+                country: location.country,
+                country_id: countryRef.id,
+                continent: location.continent,
+                continent_id: continentRef.id,
+            });
+
+            formattedLocations.push({
+                type: location.type,
+                city: location.city,
+                state: location.state,
+                country: location.country,
+                continent: location.continent,
+                location_id: cityRef.id,
+            })
+        }
+    }
+
     // add new post to feed collection
     const newScam: ScamData = {
         title: title,
         description: description,
-        city: city,
-        state: null,
-        country: country,
-        continent: null,
+        locations: formattedLocations,
         date: date,
         user: username,
         uid: uid,
@@ -564,5 +732,63 @@ export async function downvoteCommentPressed(scam_id: string, comment_id: string
         newCommentUpvotes,
         newCommentNetvotes
     };
+}
+
+export async function getLocations() {
+    const locationsCollectionRef = collection(db, 'locations');
+    const querySnapshot = await getDocs(locationsCollectionRef);
+
+    const locations: LocationBase[] = [];
+
+    querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.type == LocationType.CITY) {
+            locations.push(
+                {
+                    location_id: doc.id,
+                    type: LocationType.CITY,
+                    city: data.city,
+                    state: data.state,
+                    state_id: data.state_id,
+                    country: data.country,
+                    country_id: data.country_id,
+                    continent: data.continent,
+                    continent_id: data.continent_id,
+                } as CityLocation
+            )
+        } else if (data.type == LocationType.STATE) {
+            locations.push(
+                {
+                    location_id: doc.id,
+                    type: LocationType.STATE,
+                    state: data.state,
+                    country: data.country,
+                    country_id: data.country_id,
+                    continent: data.continent,
+                    continent_id: data.continent_id,
+                } as StateLocation
+            )
+        } else if (data.type == LocationType.COUNTRY) {
+            locations.push(
+                {
+                    location_id: doc.id,
+                    type: LocationType.COUNTRY,
+                    country: data.country,
+                    continent: data.continent,
+                    continent_id: data.continent_id,
+                } as CountryLocation
+            )
+        } else if (data.type == LocationType.CONTINENT) {
+            locations.push(
+                {
+                    location_id: doc.id,
+                    type: LocationType.CONTINENT,
+                    continent: data.continent,
+                } as ContinentLocation
+            )
+        }
+    });
+
+    return locations;
 }
 
