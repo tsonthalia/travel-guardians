@@ -28,9 +28,14 @@ export interface FirebaseComment extends CommentBase {
     timestamp: Timestamp;
 }
 
-export interface Comment extends CommentBase{
+export interface Comment extends CommentBase {
     timestamp: Date;
     id: string;
+}
+
+export interface UserActivityComment extends Comment {
+    scam: Scam;
+    userVotedTimestamp: Date;
 }
 
 export interface ScamData extends ScamBase {
@@ -42,6 +47,10 @@ export interface Scam extends ScamBase {
     id: string;
     upvotes: number;
     downvotes: number;
+}
+
+export interface UserVotedScam extends Scam {
+    userVotedTimestamp: Date;
 }
 
 export interface UserData {
@@ -120,4 +129,18 @@ export interface CountryLocation extends LocationBase {
 export interface ContinentLocation extends LocationBase {
     type: LocationType.CONTINENT;
     continent: string;
+}
+
+export interface UserVoteDatum {
+    scam_id: string;
+    timestamp: Timestamp;
+}
+
+export interface VoteDatum {
+    user_id: string;
+    timestamp: Timestamp;
+}
+
+export interface UserCommentVoteDatum extends UserVoteDatum {
+    comment_id: string;
 }

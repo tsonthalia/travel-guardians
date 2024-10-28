@@ -18,7 +18,14 @@ import {
     FirebaseComment,
     LocationEntry,
     CityLocation,
-    LocationBase, LocationType, CountryLocation, ContinentLocation, StateLocation, ScamLocation
+    LocationBase,
+    LocationType,
+    CountryLocation,
+    ContinentLocation,
+    StateLocation,
+    ScamLocation,
+    UserVoteDatum,
+    VoteDatum, UserCommentVoteDatum, UserVotedScam, UserActivityComment
 } from './interfaces';
 import {FirebaseError} from "firebase/app";
 import {query} from "@firebase/database";
@@ -297,6 +304,47 @@ export async function createPost(title: string, description: string, locations: 
     });
 }
 
+export async function getMyPosts(user_id: string) {
+    const userDocRef = doc(collection(db, 'users'), user_id);
+    const userDoc = await getDoc(userDocRef);
+
+    if (!userDoc.exists()) {
+        throw new Error('User account does not exist');
+    }
+
+    const { createdPosts } = userDoc.data();
+
+    if (!createdPosts) {
+        return [];
+    }
+
+    const scamsCollectionRef = collection(db, 'scams');
+    const myPosts: Scam[] = [];
+    for (const postId of createdPosts) {
+        const postDocRef = doc(scamsCollectionRef, postId);
+        const postDoc = await getDoc(postDocRef);
+
+        if (postDoc.exists()) {
+            const data = postDoc.data();
+            myPosts.push({
+                id: postDoc.id,
+                title: data.title,
+                description: data.description,
+                locations: data.locations,
+                date: data.date.toDate(),
+                user: data.user,
+                uid: data.uid,
+                upvotes: data?.upvotes.length ?? 0,
+                downvotes: data?.downvotes.length ?? 0,
+                netvotes: data?.netvotes ?? 0,
+                comments: data?.comments ?? [],
+            });
+        }
+    }
+
+    return myPosts;
+}
+
 async function getScamVoteData(scam_id: string) {
     const scamsCollectionRef = collection(db, 'scams');
     const scamDocRef = doc(scamsCollectionRef, scam_id);
@@ -311,6 +359,8 @@ async function getScamVoteData(scam_id: string) {
 }
 
 export async function upvotePressed(scam_id: string, uid: string) {
+    const timestamp = new Date();
+
     const { scamDocRef, upvotes, downvotes } = await getScamVoteData(scam_id);
     const userDocRef = doc(collection(db, 'users'), uid);
     const userDoc = await getDoc(userDocRef);
@@ -323,22 +373,25 @@ export async function upvotePressed(scam_id: string, uid: string) {
 
     let isUpvoted: boolean;
 
-    let newDownvotedScams = downvotedScams ?? [];
-    let newUpvotedScams = upvotedScams ?? [];
-    let newScamDownvotes: string[] = downvotes;
-    let newScamUpvotes: string[] = upvotes;
+    let newDownvotedScams: UserVoteDatum[] = downvotedScams ?? [];
+    let newUpvotedScams: UserVoteDatum[] = upvotedScams ?? [];
+    let newScamDownvotes: VoteDatum[] = downvotes;
+    let newScamUpvotes: VoteDatum[] = upvotes;
     let newScamNetvotes: number = upvotes - downvotes;
 
-    if (downvotedScams.includes(scam_id)) {
-        newDownvotedScams = downvotedScams.filter((id: string) => id !== scam_id);
-        newUpvotedScams = [...upvotedScams, scam_id];
+    if (downvotedScams.some((vote_datum: UserVoteDatum) => vote_datum.scam_id === scam_id)) {
+        newDownvotedScams = downvotedScams.filter((vote_datum: UserVoteDatum) => vote_datum.scam_id !== scam_id);
+        const newUserVoteDatum: UserVoteDatum = {scam_id: scam_id, timestamp: Timestamp.fromDate(timestamp)};
+        newUpvotedScams = [...upvotedScams, newUserVoteDatum];
+
         await updateDoc(userDocRef, {
             downvotedScams: newDownvotedScams,
             upvotedScams: newUpvotedScams,
         });
 
-        newScamDownvotes = downvotes.filter((id: string) => id !== uid);
-        newScamUpvotes = [...upvotes, uid]
+        newScamDownvotes = downvotes.filter((vote_datum: VoteDatum) => vote_datum.user_id !== uid);
+        const newScamVoteDatum: VoteDatum = {user_id: uid, timestamp: Timestamp.fromDate(timestamp)};
+        newScamUpvotes = [...upvotes, newScamVoteDatum]
         newScamNetvotes = upvotes.length - downvotes.length + 2;
         await updateDoc(scamDocRef, {
             downvotes: newScamDownvotes,
@@ -347,13 +400,13 @@ export async function upvotePressed(scam_id: string, uid: string) {
         });
 
         isUpvoted = true;
-    } else if (upvotedScams.includes(scam_id)) { // user already upvoted this scam
-        newUpvotedScams = upvotedScams.filter((id: string) => id !== scam_id);
+    } else if (upvotedScams.some((vote_datum: UserVoteDatum) => vote_datum.scam_id === scam_id)) { // user already upvoted this scam
+        newUpvotedScams = upvotedScams.filter((vote_datum: UserVoteDatum) => vote_datum.scam_id !== scam_id);
         await updateDoc(userDocRef, {
             upvotedScams: newUpvotedScams,
         });
 
-        newScamUpvotes = upvotes.filter((id: string) => id !== uid);
+        newScamUpvotes = upvotes.filter((vote_datum: VoteDatum) => vote_datum.user_id !== uid);
         newScamNetvotes = upvotes.length - downvotes.length - 1;
         await updateDoc(scamDocRef, {
             upvotes: newScamUpvotes,
@@ -362,12 +415,14 @@ export async function upvotePressed(scam_id: string, uid: string) {
 
         isUpvoted = false;
     } else { // User has not voted on this scam
-        newUpvotedScams = [...upvotedScams, scam_id];
+        const newUserVoteDatum: UserVoteDatum = {scam_id: scam_id, timestamp: Timestamp.fromDate(timestamp)};
+        newUpvotedScams = [...upvotedScams, newUserVoteDatum];
         await updateDoc(userDocRef, {
             upvotedScams: newUpvotedScams,
         });
 
-        newScamUpvotes = [...upvotes, uid];
+        const newScamVoteDatum: VoteDatum = {user_id: uid, timestamp: Timestamp.fromDate(timestamp)};
+        newScamUpvotes = [...upvotes, newScamVoteDatum];
         newScamNetvotes = upvotes.length - downvotes.length + 1;
         await updateDoc(scamDocRef, {
             upvotes: newScamUpvotes,
@@ -381,6 +436,8 @@ export async function upvotePressed(scam_id: string, uid: string) {
 }
 
 export async function downvotePressed(scam_id: string, uid: string) {
+    const timestamp = new Date();
+
     const { scamDocRef, upvotes, downvotes } = await getScamVoteData(scam_id);
     const userDocRef = doc(collection(db, 'users'), uid);
     const userDoc = await getDoc(userDocRef);
@@ -399,16 +456,18 @@ export async function downvotePressed(scam_id: string, uid: string) {
     let newScamUpvotes: string[] = upvotes;
     let newScamNetvotes = upvotes - downvotes;
 
-    if (upvotedScams.includes(scam_id)) {
-        newUpvotedScams = upvotedScams.filter((id: string) => id !== scam_id);
-        newDownvotedScams = [...downvotedScams, scam_id];
+    if (upvotedScams.some((vote_datum: UserVoteDatum) => vote_datum.scam_id === scam_id)) {
+        newUpvotedScams = upvotedScams.filter((vote_datum: UserVoteDatum) => vote_datum.scam_id !== scam_id);
+        const newUserVoteDatum: UserVoteDatum = {scam_id: scam_id, timestamp: Timestamp.fromDate(timestamp)};
+        newDownvotedScams = [...downvotedScams, newUserVoteDatum];
         await updateDoc(userDocRef, {
             upvotedScams: newUpvotedScams,
             downvotedScams: newDownvotedScams,
         });
 
-        newScamUpvotes = upvotes.filter((id: string) => id !== uid);
-        newScamDownvotes = [...downvotes, uid]
+        newScamUpvotes = upvotes.filter((vote_datum: VoteDatum) => vote_datum.user_id !== uid);
+        const newScamVoteDatum: VoteDatum = {user_id: uid, timestamp: Timestamp.fromDate(timestamp)};
+        newScamDownvotes = [...downvotes, newScamVoteDatum]
         newScamNetvotes = upvotes.length - downvotes.length - 2;
         await updateDoc(scamDocRef, {
             upvotes: newScamUpvotes,
@@ -417,13 +476,13 @@ export async function downvotePressed(scam_id: string, uid: string) {
         });
 
         isDownvoted = true;
-    } else if (downvotedScams.includes(scam_id)) { // user already downvoted this scam
-        newDownvotedScams = downvotedScams.filter((id: string) => id !== scam_id);
+    } else if (downvotedScams.some((vote_datum: UserVoteDatum) => vote_datum.scam_id === scam_id)) { // user already downvoted this scam
+        newDownvotedScams = downvotedScams.filter((vote_datum: UserVoteDatum) => vote_datum.scam_id !== scam_id);
         await updateDoc(userDocRef, {
             downvotedScams: newDownvotedScams,
         });
 
-        newScamDownvotes = downvotes.filter((id: string) => id !== uid);
+        newScamDownvotes = downvotes.filter((vote_datum: VoteDatum) => vote_datum.user_id !== uid);
         newScamNetvotes = upvotes.length - downvotes.length + 1;
         await updateDoc(scamDocRef, {
             downvotes: newScamDownvotes,
@@ -432,12 +491,14 @@ export async function downvotePressed(scam_id: string, uid: string) {
 
         isDownvoted = false;
     } else { // User has not voted on this scam
-        newDownvotedScams = [...downvotedScams, scam_id];
+        const newUserVoteDatum: UserVoteDatum = {scam_id: scam_id, timestamp: Timestamp.fromDate(timestamp)};
+        newDownvotedScams = [...downvotedScams, newUserVoteDatum];
         await updateDoc(userDocRef, {
             downvotedScams: newDownvotedScams,
         });
 
-        newScamDownvotes = [...downvotes, uid];
+        const newScamVoteDatum: VoteDatum = {user_id: uid, timestamp: Timestamp.fromDate(timestamp)};
+        newScamDownvotes = [...downvotes, newScamVoteDatum];
         newScamNetvotes = upvotes.length - downvotes.length - 1;
         await updateDoc(scamDocRef, {
             downvotes: newScamDownvotes,
@@ -488,13 +549,19 @@ export async function addComment(comment: string, scam_id: string, user_id: stri
     const commentDocRef = await addDoc(commentsCollectionRef, newComment);
 
     const { comments: userComments } = userDoc.data();
+    const newCommentUser = {
+        scam_id: scam_id,
+        comment_id: commentDocRef.id,
+        timestamp: Timestamp.fromDate(commentTimestamp),
+    }
+
     if (!userComments) {
         await updateDoc(doc(collection(db, 'users'), user_id), {
-            comments: [commentDocRef.id],
+            comments: [newCommentUser],
         });
     } else {
         await updateDoc(doc(collection(db, 'users'), user_id), {
-            comments: [...userComments, commentDocRef.id],
+            comments: [...userComments, newCommentUser],
         });
     }
 
@@ -569,6 +636,8 @@ export async function deleteComment(scam_id: string, comment_id: string, uid: st
 }
 
 export async function upvoteCommentPressed(scam_id: string, comment_id: string, uid: string) {
+    const timestamp = new Date();
+
     const commentDocRef = doc(collection(db, 'scams', scam_id, 'comments'), comment_id);
     const commentDoc = await getDoc(commentDocRef);
     const userDocRef = doc(collection(db, 'users'), uid);
@@ -587,22 +656,29 @@ export async function upvoteCommentPressed(scam_id: string, comment_id: string, 
 
     let isUpvoted: boolean;
 
-    let newDownvotedComments = downvotedComments ?? [];
-    let newUpvotedComments = upvotedComments ?? [];
-    let newCommentDownvotes: string[] = downvotes;
-    let newCommentUpvotes: string[] = upvotes;
+    let newDownvotedComments: UserCommentVoteDatum[] = downvotedComments ?? [];
+    let newUpvotedComments: UserCommentVoteDatum[] = upvotedComments ?? [];
+    let newCommentDownvotes: VoteDatum[] = downvotes;
+    let newCommentUpvotes: VoteDatum[] = upvotes;
     let newCommentNetvotes: number = upvotes - downvotes;
 
-    if (downvotedComments.includes(comment_id)) {
-        newDownvotedComments = downvotedComments.filter((id: string) => id !== comment_id);
-        newUpvotedComments = [...upvotedComments, comment_id];
+    if (downvotedComments.some((vote_datum: UserCommentVoteDatum) => vote_datum.comment_id === comment_id)) {
+        newDownvotedComments = downvotedComments.filter((vote_datum: UserCommentVoteDatum) => vote_datum.comment_id !== comment_id);
+        const newUserVoteDatum: UserCommentVoteDatum = {
+            scam_id: scam_id,
+            comment_id: comment_id,
+            timestamp: Timestamp.fromDate(timestamp)
+        };
+
+        newUpvotedComments = [...upvotedComments, newUserVoteDatum];
         await updateDoc(userDocRef, {
             downvotedComments: newDownvotedComments,
             upvotedComments: newUpvotedComments,
         });
 
-        newCommentDownvotes = downvotes.filter((id: string) => id !== uid);
-        newCommentUpvotes = [...upvotes, uid]
+        newCommentDownvotes = downvotes.filter((vote_datum: VoteDatum) => vote_datum.user_id !== uid);
+        const newCommentVoteDatum: VoteDatum = {user_id: uid, timestamp: Timestamp.fromDate(timestamp)};
+        newCommentUpvotes = [...upvotes, newCommentVoteDatum]
         newCommentNetvotes = upvotes.length - downvotes.length + 2;
         await updateDoc(commentDocRef, {
             downvotes: newCommentDownvotes,
@@ -611,13 +687,13 @@ export async function upvoteCommentPressed(scam_id: string, comment_id: string, 
         });
 
         isUpvoted = true;
-    } else if (upvotedComments.includes(comment_id)) { // user already upvoted this comment
-        newUpvotedComments = upvotedComments.filter((id: string) => id !== comment_id);
+    } else if (upvotedComments.some((vote_datum: UserCommentVoteDatum) => vote_datum.comment_id === comment_id)) { // user already upvoted this comment
+        newUpvotedComments = upvotedComments.filter((vote_datum: UserCommentVoteDatum) => vote_datum.comment_id !== comment_id);
         await updateDoc(userDocRef, {
             upvotedComments: newUpvotedComments,
         });
 
-        newCommentUpvotes = upvotes.filter((id: string) => id !== uid);
+        newCommentUpvotes = upvotes.filter((vote_datum: VoteDatum) => vote_datum.user_id !== uid);
         newCommentNetvotes = upvotes.length - downvotes.length - 1;
         await updateDoc(commentDocRef, {
             upvotes: newCommentUpvotes,
@@ -626,12 +702,18 @@ export async function upvoteCommentPressed(scam_id: string, comment_id: string, 
 
         isUpvoted = false;
     } else { // User has not voted on this comment
-        newUpvotedComments = [...upvotedComments, comment_id];
+        const newUserVoteDatum: UserCommentVoteDatum = {
+            scam_id: scam_id,
+            comment_id: comment_id,
+            timestamp: Timestamp.fromDate(timestamp)
+        };
+        newUpvotedComments = [...upvotedComments, newUserVoteDatum];
         await updateDoc(userDocRef, {
             upvotedComments: newUpvotedComments,
         });
 
-        newCommentUpvotes = [...upvotes, uid];
+        const newCommentVoteDatum: VoteDatum = {user_id: uid, timestamp: Timestamp.fromDate(timestamp)};
+        newCommentUpvotes = [...upvotes, newCommentVoteDatum];
         newCommentNetvotes = upvotes.length - downvotes.length + 1;
         await updateDoc(commentDocRef, {
             upvotes: newCommentUpvotes,
@@ -652,6 +734,8 @@ export async function upvoteCommentPressed(scam_id: string, comment_id: string, 
 }
 
 export async function downvoteCommentPressed(scam_id: string, comment_id: string, uid: string) {
+    const timestamp = new Date();
+
     const commentDocRef = doc(collection(db, 'scams', scam_id, 'comments'), comment_id);
     const commentDoc = await getDoc(commentDocRef);
     const userDocRef = doc(collection(db, 'users'), uid);
@@ -670,22 +754,28 @@ export async function downvoteCommentPressed(scam_id: string, comment_id: string
 
     let isDownvoted: boolean;
 
-    let newDownvotedComments = downvotedComments ?? [];
-    let newUpvotedComments = upvotedComments ?? [];
-    let newCommentDownvotes: string[] = downvotes;
-    let newCommentUpvotes: string[] = upvotes;
+    let newDownvotedComments: UserCommentVoteDatum[] = downvotedComments ?? [];
+    let newUpvotedComments: UserCommentVoteDatum[] = upvotedComments ?? [];
+    let newCommentDownvotes: VoteDatum[] = downvotes;
+    let newCommentUpvotes: VoteDatum[] = upvotes;
     let newCommentNetvotes: number = upvotes - downvotes;
 
-    if (upvotedComments.includes(comment_id)) {
-        newUpvotedComments = upvotedComments.filter((id: string) => id !== comment_id);
-        newDownvotedComments = [...downvotedComments, comment_id];
+    if (upvotedComments.some((vote_datum: UserCommentVoteDatum) => vote_datum.comment_id === comment_id)) {
+        newUpvotedComments = upvotedComments.filter((vote_datum: UserCommentVoteDatum) => vote_datum.comment_id !== comment_id);
+        const newUserVoteDatum: UserCommentVoteDatum = {
+            scam_id: scam_id,
+            comment_id: comment_id,
+            timestamp: Timestamp.fromDate(timestamp)
+        };
+        newDownvotedComments = [...downvotedComments, newUserVoteDatum];
         await updateDoc(userDocRef, {
             upvotedComments: newUpvotedComments,
             downvotedComments: newDownvotedComments,
         });
 
-        newCommentUpvotes = upvotes.filter((id: string) => id !== uid);
-        newCommentDownvotes = [...downvotes, uid]
+        newCommentUpvotes = upvotes.filter((vote_datum: VoteDatum) => vote_datum.user_id !== uid);
+        const newCommentVoteDatum: VoteDatum = {user_id: uid, timestamp: Timestamp.fromDate(timestamp)};
+        newCommentDownvotes = [...downvotes, newCommentVoteDatum]
         newCommentNetvotes = upvotes.length - downvotes.length - 2;
         await updateDoc(commentDocRef, {
             upvotes: newCommentUpvotes,
@@ -694,13 +784,13 @@ export async function downvoteCommentPressed(scam_id: string, comment_id: string
         });
 
         isDownvoted = true;
-    } else if (downvotedComments.includes(comment_id)) { // user already downvoted this comment
-        newDownvotedComments = downvotedComments.filter((id: string) => id !== comment_id);
+    } else if (downvotedComments.some((vote_datum: UserCommentVoteDatum) => vote_datum.comment_id === comment_id)) { // user already downvoted this comment
+        newDownvotedComments = downvotedComments.filter((vote_datum: UserCommentVoteDatum) => vote_datum.comment_id !== comment_id);
         await updateDoc(userDocRef, {
             downvotedComments: newDownvotedComments,
         });
 
-        newCommentDownvotes = downvotes.filter((id: string) => id !== uid);
+        newCommentDownvotes = downvotes.filter((vote_datum: VoteDatum) => vote_datum.user_id !== uid);
         newCommentNetvotes = upvotes.length - downvotes.length + 1;
         await updateDoc(commentDocRef, {
             downvotes: newCommentDownvotes,
@@ -709,12 +799,18 @@ export async function downvoteCommentPressed(scam_id: string, comment_id: string
 
         isDownvoted = false;
     } else { // User has not voted on this comment
-        newDownvotedComments = [...downvotedComments, comment_id];
+        const newUserVoteDatum: UserCommentVoteDatum = {
+            scam_id: scam_id,
+            comment_id: comment_id,
+            timestamp: Timestamp.fromDate(timestamp)
+        };
+        newDownvotedComments = [...downvotedComments, newUserVoteDatum];
         await updateDoc(userDocRef, {
             downvotedComments: newDownvotedComments,
         });
 
-        newCommentDownvotes = [...downvotes, uid];
+        const newCommentVoteDatum: VoteDatum = {user_id: uid, timestamp: Timestamp.fromDate(timestamp)};
+        newCommentDownvotes = [...downvotes, newCommentVoteDatum];
         newCommentNetvotes = upvotes.length - downvotes.length - 1;
         await updateDoc(commentDocRef, {
             downvotes: newCommentDownvotes,
@@ -792,3 +888,219 @@ export async function getLocations() {
     return locations;
 }
 
+export async function getUserActivity(user_id: string) {
+    const userDocRef = doc(collection(db, 'users'), user_id);
+    const userDoc = await getDoc(userDocRef);
+
+    if (!userDoc.exists()) {
+        throw new Error('User account does not exist');
+    }
+
+    const { createdPosts, comments, upvotedScams, downvotedScams, upvotedComments, downvotedComments } = userDoc.data();
+
+    const scamsCollectionRef = collection(db, 'scams');
+    const postedScams: Scam[] = [];
+    for (const postId of createdPosts) {
+        const postDocRef = doc(scamsCollectionRef, postId);
+        const postDoc = await getDoc(postDocRef);
+
+        if (postDoc.exists()) {
+            const data = postDoc.data();
+            postedScams.push({
+                id: postDoc.id,
+                title: data.title,
+                description: data.description,
+                locations: data.locations,
+                date: data.date.toDate(),
+                user: data.user,
+                uid: data.uid,
+                upvotes: data?.upvotes.length ?? 0,
+                downvotes: data?.downvotes.length ?? 0,
+                netvotes: data?.netvotes ?? 0,
+                comments: data?.comments ?? [],
+            });
+        }
+    }
+
+    const userComments: UserActivityComment[] = [];
+    for (const comment of comments) {
+        const scamDocRef = doc(collection(db, 'scams'), comment.scam_id);
+        const scamDoc = await getDoc(scamDocRef);
+
+        if (!scamDoc.exists()) {
+            continue;
+        }
+
+        const scamData = scamDoc.data();
+        const scam = {
+            id: scamDoc.id,
+            title: scamData.title,
+            description: scamData.description,
+            locations: scamData.locations,
+            date: scamData.date.toDate(),
+            user: scamData.user,
+            uid: scamData.uid,
+            upvotes: scamData?.upvotes.length ?? 0,
+            downvotes: scamData?.downvotes.length ?? 0,
+            netvotes: scamData?.netvotes ?? 0,
+            comments: scamData?.comments ?? [],
+        }
+
+        const commentDocRef = doc(collection(db, 'scams', comment.scam_id, 'comments'), comment.comment_id);
+        const commentDoc = await getDoc(commentDocRef);
+
+        if (commentDoc.exists()) {
+            const data = commentDoc.data() as FirebaseComment;
+            userComments.push({
+                comment: data.comment,
+                uid: data.uid,
+                username: data.username,
+                timestamp: data.timestamp.toDate(),
+                upvotes: data?.upvotes ?? [],
+                downvotes: data?.downvotes ?? [],
+                netvotes: data?.netvotes ?? 0,
+                id: comment.comment_id,
+                userVotedTimestamp: comment.timestamp.toDate(),
+                scam: scam,
+            });
+        }
+    }
+
+    const userUpvotedScams: UserVotedScam[] = [];
+    for (const vote_datum of upvotedScams) {
+        const scamDocRef = doc(collection(db, 'scams'), vote_datum.scam_id);
+        const scamDoc = await getDoc(scamDocRef);
+
+        if (scamDoc.exists()) {
+            const data = scamDoc.data();
+            userUpvotedScams.push({
+                id: scamDoc.id,
+                title: data.title,
+                description: data.description,
+                locations: data.locations,
+                date: data.date.toDate(),
+                user: data.user,
+                uid: data.uid,
+                upvotes: data?.upvotes.length ?? 0,
+                downvotes: data?.downvotes.length ?? 0,
+                netvotes: data?.netvotes ?? 0,
+                comments: data?.comments ?? [],
+                userVotedTimestamp: vote_datum.timestamp.toDate(),
+            });
+        }
+    }
+
+    const userDownvotedScams: UserVotedScam[] = [];
+    for (const vote_datum of downvotedScams) {
+        const scamDocRef = doc(collection(db, 'scams'), vote_datum.scam_id);
+        const scamDoc = await getDoc(scamDocRef);
+
+        if (scamDoc.exists()) {
+            const data = scamDoc.data();
+            userDownvotedScams.push({
+                id: scamDoc.id,
+                title: data.title,
+                description: data.description,
+                locations: data.locations,
+                date: data.date.toDate(),
+                user: data.user,
+                uid: data.uid,
+                upvotes: data?.upvotes.length ?? 0,
+                downvotes: data?.downvotes.length ?? 0,
+                netvotes: data?.netvotes ?? 0,
+                comments: data?.comments ?? [],
+                userVotedTimestamp: vote_datum.timestamp.toDate(),
+            });
+        }
+    }
+
+    const userUpvotedComments: UserActivityComment[] = [];
+    for (const vote_datum of upvotedComments) {
+        const scamDocRef = doc(collection(db, 'scams'), vote_datum.scam_id);
+        const scamDoc = await getDoc(scamDocRef);
+
+        if (!scamDoc.exists()) {
+            continue;
+        }
+
+        const scamData = scamDoc.data();
+        const scam = {
+            id: scamDoc.id,
+            title: scamData.title,
+            description: scamData.description,
+            locations: scamData.locations,
+            date: scamData.date.toDate(),
+            user: scamData.user,
+            uid: scamData.uid,
+            upvotes: scamData?.upvotes.length ?? 0,
+            downvotes: scamData?.downvotes.length ?? 0,
+            netvotes: scamData?.netvotes ?? 0,
+            comments: scamData?.comments ?? [],
+        }
+
+        const commentDocRef = doc(collection(db, 'scams', vote_datum.scam_id, 'comments'), vote_datum.comment_id);
+        const commentDoc = await getDoc(commentDocRef);
+
+        if (commentDoc.exists()) {
+            const data = commentDoc.data() as FirebaseComment;
+            userUpvotedComments.push({
+                comment: data.comment,
+                uid: data.uid,
+                username: data.username,
+                timestamp: data.timestamp.toDate(),
+                upvotes: data?.upvotes ?? [],
+                downvotes: data?.downvotes ?? [],
+                netvotes: data?.netvotes ?? 0,
+                id: commentDoc.id,
+                userVotedTimestamp: vote_datum.timestamp.toDate(),
+                scam: scam,
+            });
+        }
+    }
+
+    const userDownvotedComments: UserActivityComment[] = [];
+    for (const vote_datum of downvotedComments) {
+        const scamDocRef = doc(collection(db, 'scams'), vote_datum.scam_id);
+        const scamDoc = await getDoc(scamDocRef);
+
+        if (!scamDoc.exists()) {
+            continue;
+        }
+
+        const scamData = scamDoc.data();
+        const scam = {
+            id: scamDoc.id,
+            title: scamData.title,
+            description: scamData.description,
+            locations: scamData.locations,
+            date: scamData.date.toDate(),
+            user: scamData.user,
+            uid: scamData.uid,
+            upvotes: scamData?.upvotes.length ?? 0,
+            downvotes: scamData?.downvotes.length ?? 0,
+            netvotes: scamData?.netvotes ?? 0,
+            comments: scamData?.comments ?? [],
+        }
+
+        const commentDocRef = doc(collection(db, 'scams', vote_datum.scam_id, 'comments'), vote_datum.comment_id);
+        const commentDoc = await getDoc(commentDocRef);
+
+        if (commentDoc.exists()) {
+            const data = commentDoc.data() as FirebaseComment;
+            userDownvotedComments.push({
+                comment: data.comment,
+                uid: data.uid,
+                username: data.username,
+                timestamp: data.timestamp.toDate(),
+                upvotes: data?.upvotes ?? [],
+                downvotes: data?.downvotes ?? [],
+                netvotes: data?.netvotes ?? 0,
+                id: commentDoc.id,
+                userVotedTimestamp: vote_datum.timestamp.toDate(),
+                scam: scam,
+            });
+        }
+    }
+
+    return { postedScams, userComments, userUpvotedScams, userDownvotedScams, userUpvotedComments, userDownvotedComments };
+}
