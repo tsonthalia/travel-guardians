@@ -3,8 +3,8 @@ import {useEffect, useRef, useState} from "react";
 import {Scam} from "@/firebase/firestore/interfaces";
 import {downvotePressed, getFeed, upvotePressed} from "@/firebase/firestore/firestore";
 import {useAuthContext} from "@/context/AuthContext";
-import UpvoteDownvoteSelector from "@/components/UpvoteDownvote/UpvoteDownvoteSelector";
-import SelectedScamView from "@/components/SelectedScam/SelectedScamView";
+import ScamCard from "@/components/Scam/ScamCard";
+import SelectedScamView from "@/components/Scam/SelectedScamView";
 
 export default function Feed() {
   const [feed, setFeed] = useState<Scam[]>([]);
@@ -48,7 +48,9 @@ export default function Feed() {
   }, [autocompleteRef]);
 
   const getUniqueLocations = () => {
-    const locations = feed.flatMap(scam => [`${scam.city}, ${scam.country}`, scam.country])
+    const locations = feed.flatMap(scam =>
+        scam.locations.flatMap((location, index) => [`${location.city}, ${location.country}`, location.country])
+    )
     return Array.from(new Set(locations)); // Return unique combinations
   };
 
@@ -107,14 +109,21 @@ export default function Feed() {
   }
 
   const filteredFeed = feed.filter(scam => {
-    return scam.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        scam.country.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        searchQuery.split(" ").some((word) => {
-          return word != "" && (
-              word.toLowerCase().includes(scam.city.toLowerCase()) ||
-              word.toLowerCase().includes(scam.country.toLowerCase())
-          );
-        });
+    // Check if any of the cities or countries match the search query
+    const matchesLocations = scam.locations.some(location => (
+        location.city.toLowerCase().includes(searchQuery.toLowerCase()) || location.country.toLowerCase().includes(searchQuery.toLowerCase()) || location.continent.toLowerCase().includes(searchQuery.toLowerCase())
+    ));
+
+    // Check if the search query has words that match any cities or countries
+    const matchesWords = searchQuery.split(" ").some(word => {
+      return word !== "" && (
+          scam.locations.some(location => (
+              location.city.toLowerCase().includes(searchQuery.toLowerCase()) || location.country.toLowerCase().includes(searchQuery.toLowerCase()) || location.continent.toLowerCase().includes(searchQuery.toLowerCase())
+          ))
+      );
+    });
+
+    return matchesLocations || matchesWords;
   });
 
   const handleUpdateSearchQuery = (query: string) => {
@@ -158,45 +167,15 @@ export default function Feed() {
 
               <div className="grid grid-cols-1 gap-8 max-w-2xl mx-auto">
                 {filteredFeed.length == 0 ? "No scams found." : filteredFeed.sort((a, b) => b.netvotes - a.netvotes).map((scam) => (
-                    <div key={scam.id} className="bg-gray-100 p-6 rounded-lg shadow-lg relative" onClick={() => handleOpenModal(scam)}>
-                      {/* Upvote/Downvote Section */}
-                      <UpvoteDownvoteSelector
-                          scam_id={scam.id}
-                          netvotes={scam.netvotes}
-                          isUpvoted={upvotedScams.includes(scam.id)}
-                          isDownvoted={downvotedScams.includes(scam.id)}
-                          handleUpvote={handleUpvote}
-                          handleDownvote={handleDownvote}
-                      />
-
-                      {/* Post Content Section */}
-                      <div className="ml-12">
-                        <h4 className="text-xl font-bold text-indigo-600 mb-4">{scam.title}</h4>
-                        <p className="text-gray-700 mb-4">
-                          {scam.description}
-                        </p>
-
-                        {/* Metadata */}
-                        <div className="flex items-center text-sm text-gray-500">
-                          <span>Posted by <strong className="text-indigo-600">{scam.user}</strong></span>
-                          <span className="mx-2">•</span>
-                          <span>{scam.date.toDateString()}</span>
-                          <span className="mx-2">•</span>
-                          <span>{scam.city}, {scam.country}</span>
-                        </div>
-
-                        <div className="mt-4 flex items-center text-gray-500">
-                          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24"
-                               xmlns="http://www.w3.org/2000/svg">
-                            <path d="M3 3h18v12H7l-4 4V3z"/>
-                            {/* Comments Icon (adjust as needed) */}
-                          </svg>
-
-                          {/* Replace with dynamic comment count */}
-                          <span>{scam.comments || 0} comments</span>
-                        </div>
-                      </div>
-                    </div>
+                    <ScamCard
+                        key={scam.id}
+                        scam={scam}
+                        upvotedScams={upvotedScams}
+                        downvotedScams={downvotedScams}
+                        handleUpvote={handleUpvote}
+                        handleDownvote={handleDownvote}
+                        handleOpenModal={handleOpenModal}
+                    />
                 ))}
 
                 {/* Modal for displaying comments */}
