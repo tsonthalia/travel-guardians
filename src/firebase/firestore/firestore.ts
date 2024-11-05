@@ -6,7 +6,7 @@ import {
     connectFirestoreEmulator,
     addDoc,
     updateDoc,
-    getDoc, setDoc, orderBy, Timestamp, deleteDoc,
+    getDoc, setDoc, orderBy, Timestamp, deleteDoc, limit, QuerySnapshot, DocumentData
 } from 'firebase/firestore';
 import firebase_app from '@/firebase/config';
 
@@ -25,7 +25,7 @@ import {
     StateLocation,
     ScamLocation,
     UserVoteDatum,
-    VoteDatum, UserCommentVoteDatum, UserVotedScam, UserActivityComment
+    VoteDatum, UserCommentVoteDatum, UserVotedScam, UserActivityComment, Contact
 } from './interfaces';
 import {FirebaseError} from "firebase/app";
 import {query} from "@firebase/database";
@@ -1103,4 +1103,44 @@ export async function getUserActivity(user_id: string) {
     }
 
     return { postedScams, userComments, userUpvotedScams, userDownvotedScams, userUpvotedComments, userDownvotedComments };
+}
+
+
+export async function submitContact(contact: Contact) {
+    const contactCollectionRef = collection(db, 'contact');
+
+    await addDoc(contactCollectionRef, contact);
+}
+
+export async function getPopularCities() {
+    const locationsCollectionRef = collection(db, 'locations');
+
+    let querySnapshot: QuerySnapshot<DocumentData, DocumentData>;
+    // @ts-ignore
+    querySnapshot = await getDocs(query(locationsCollectionRef, orderBy('scams_num', 'desc'), limit(4))) as QuerySnapshot<DocumentData, DocumentData>;
+
+    const locations: CityLocation[] = [];
+
+    querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.type == LocationType.CITY) {
+            locations.push(
+                {
+                    location_id: doc.id,
+                    type: LocationType.CITY,
+                    city: data.city,
+                    state: data.state,
+                    state_id: data.state_id,
+                    country: data.country,
+                    country_id: data.country_id,
+                    continent: data.continent,
+                    continent_id: data.continent_id,
+                    scams: data.scams ?? [],
+                    image_url: data.image_url ?? null,
+                }
+            )
+        }
+    })
+
+    return locations;
 }

@@ -58,11 +58,11 @@ export interface UserData {
     email: string;
     firstName: string;
     lastName: string;
-    upvotedScams: string[];
-    downvotedScams: string[];
+    upvotedScams: UserVoteDatum[];
+    downvotedScams: UserVoteDatum[];
     createdPosts: string[];
-    upvotedComments: string[];
-    downvotedComments: string[];
+    upvotedComments: UserCommentVoteDatum[];
+    downvotedComments: UserCommentVoteDatum[];
     comments: string[];
     followedLocations: string[];
 }
@@ -108,6 +108,8 @@ export interface CityLocation extends LocationBase {
     state_id: string | null;
     country_id: string;
     continent_id: string;
+    scams: string[] | null;
+    image_url: string | null;
 }
 
 export interface StateLocation extends LocationBase {
@@ -143,4 +145,10 @@ export interface VoteDatum {
 
 export interface UserCommentVoteDatum extends UserVoteDatum {
     comment_id: string;
+}
+
+export interface Contact {
+    name: string;
+    email: string;
+    message: string;
 }

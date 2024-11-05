@@ -22,5 +22,12 @@ service cloud.firestore {
       // Allow read for everyone
       allow read, write: if true;
     }
+    match /locations/{documentId} {
+      // Allow read for everyone
+      allow read, write: if true;
+    }
+    match /contact/{documentId} {
+    	allow create: if true;
+    }
   }
 }
