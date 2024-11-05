@@ -1,4 +1,4 @@
-import {Comment, Scam} from "@/firebase/firestore/interfaces";
+import {Comment, Scam, UserCommentVoteDatum} from "@/firebase/firestore/interfaces";
 import React, {useEffect, useRef, useState} from "react";
 import {addComment, deleteComment, downvoteCommentPressed, getComments, upvoteCommentPressed} from "@/firebase/firestore/firestore";
 import {useAuthContext} from "@/context/AuthContext";
@@ -19,11 +19,11 @@ export default function SelectedScamView({selectedScam, handleCloseModal, handle
     const [newComment, setNewComment] = useState("");
 
     const user = useAuthContext();
-    const [upvotedComments, setUpvotedComments] = useState<string[]>(
+    const [upvotedComments, setUpvotedComments] = useState<UserCommentVoteDatum[]>(
         user?.userData?.upvotedComments ?? []
     );
-    const [downvotedComments, setDownvotedComments] = useState<string[]>(
-        user?.userData?.downvotedScams ?? []
+    const [downvotedComments, setDownvotedComments] = useState<UserCommentVoteDatum[]>(
+        user?.userData?.downvotedComments ?? []
     );
 
     const modalRef = useRef<HTMLDivElement>(null); // Create a reference for the modal
@@ -206,8 +206,8 @@ export default function SelectedScamView({selectedScam, handleCloseModal, handle
                                 <CommentUpvoteDownvoteSelector
                                     commentId={comment.id}
                                     netvotes={comment.netvotes}
-                                    isUpvoted={upvotedComments.includes(comment.id)}
-                                    isDownvoted={downvotedComments.includes(comment.id)}
+                                    isUpvoted={upvotedComments.some((commentVote) => commentVote.comment_id === comment.id)}
+                                    isDownvoted={downvotedComments.some((commentVote) => commentVote.comment_id === comment.id)}
                                     handleUpvote={handleUpvoteComment}
                                     handleDownvote={handleDownvoteComment}
                                 />

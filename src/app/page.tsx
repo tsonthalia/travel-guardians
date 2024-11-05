@@ -1,26 +1,28 @@
 'use client';
 import {useEffect, useRef, useState} from "react";
-import {Scam} from "@/firebase/firestore/interfaces";
-import {downvotePressed, getFeed, upvotePressed} from "@/firebase/firestore/firestore";
+import {CityLocation, Scam, UserVoteDatum} from "@/firebase/firestore/interfaces";
+import {downvotePressed, getFeed, upvotePressed, getPopularCities} from "@/firebase/firestore/firestore";
 import {useAuthContext} from "@/context/AuthContext";
 import ScamCard from "@/components/Scam/ScamCard";
 import SelectedScamView from "@/components/Scam/SelectedScamView";
+import Image from 'next/image';
 
 export default function Feed() {
   const [feed, setFeed] = useState<Scam[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filteredLocations, setFilteredLocations] = useState<string[]>([]); // Autocomplete filtered locations
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null); // Selected city-country
+  const [popularLocations, setPopularLocations] = useState<CityLocation[]>([]);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [selectedScam, setSelectedScam] = useState<Scam | null>(null);
 
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
   const user = useAuthContext();
-  const [upvotedScams, setUpvotedScams] = useState<string[]>(
+  const [upvotedScams, setUpvotedScams] = useState<UserVoteDatum[]>(
       user?.userData?.upvotedScams ? user?.userData?.upvotedScams : []
   );
-  const [downvotedScams, setDownvotedScams] = useState<string[]>(
+  const [downvotedScams, setDownvotedScams] = useState<UserVoteDatum[]>(
       user?.userData?.downvotedScams ? user?.userData?.downvotedScams : []
   );
 
@@ -46,6 +48,12 @@ export default function Feed() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [autocompleteRef]);
+
+  useEffect( () => {
+    getPopularCities().then((cities) => {
+        setPopularLocations(cities);
+    });
+  })
 
   const getUniqueLocations = () => {
     const locations = feed.flatMap(scam =>
@@ -118,10 +126,12 @@ export default function Feed() {
     const matchesWords = searchQuery.split(" ").some(word => {
       return word !== "" && (
           scam.locations.some(location => (
-              location.city.toLowerCase().includes(searchQuery.toLowerCase()) || location.country.toLowerCase().includes(searchQuery.toLowerCase()) || location.continent.toLowerCase().includes(searchQuery.toLowerCase())
+              location.city.toLowerCase().includes(word.toLowerCase()) || location.country.toLowerCase().includes(word.toLowerCase()) || location.continent.toLowerCase().includes(word.toLowerCase())
           ))
       );
     });
+
+    // console.log(scam.locations)
 
     return matchesLocations || matchesWords;
   });
@@ -137,11 +147,33 @@ export default function Feed() {
     setFilteredLocations([]); // Clear dropdown
   };
 
+  const handlePopularLocationClick = async (location: string) => {
+    setSearchQuery(location);
+    setSelectedLocation(location);
+  }
+
   return (
       <div className="min-h-screen bg-gray-100 flex flex-col justify-between">
         <main className="flex-grow">
           <section className="py-12">
             <div className="container mx-auto px-6">
+              <div className="max-w-2xl mx-auto mb-6">
+                <div className="grid grid-cols-4 gap-4 mb-4 justify-center">
+                  {popularLocations.map((location, index) => (
+                      <div
+                          key={index}
+                          className="cursor-pointer relative w-full h-48 overflow-hidden"
+                          onClick={() => handlePopularLocationClick(location.city + ", " + location.country)}
+                      >
+                        <Image src={location.image_url ?? '/generic_city.jpeg'} alt={location.city} layout="fill" objectFit="cover" className="rounded-lg shadow-md" />
+                        <div className="absolute bottom-0 w-full bg-gradient-to-t from-black via-black/80 to-transparent py-1 rounded-b-lg">
+                          <p className="text-white text-sm mb-1 font-bold text-center px-1">{location.city + ", " + location.country}</p>
+                        </div>
+                      </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="max-w-2xl mx-auto mb-6 relative" ref={autocompleteRef}>
                 <input
                     type="text"
@@ -175,6 +207,7 @@ export default function Feed() {
                         handleUpvote={handleUpvote}
                         handleDownvote={handleDownvote}
                         handleOpenModal={handleOpenModal}
+                        allowDelete={user?.user?.uid === scam.id}
                     />
                 ))}
 
@@ -185,8 +218,8 @@ export default function Feed() {
                         handleCloseModal={handleCloseModal}
                         handleUpvoteScam={handleUpvote}
                         handleDownvoteScam={handleDownvote}
-                        isUpvoted={upvotedScams.includes(selectedScam.id)}
-                        isDownvoted={downvotedScams.includes(selectedScam.id)}
+                        isUpvoted={upvotedScams.some((scam) => scam.scam_id === selectedScam.id)}
+                        isDownvoted={downvotedScams.some((scam) => scam.scam_id === selectedScam.id)}
                     />
                 )}
               </div>
