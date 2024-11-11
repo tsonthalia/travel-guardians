@@ -4,6 +4,7 @@ import {addComment, deleteComment, downvoteCommentPressed, getComments, upvoteCo
 import {useAuthContext} from "@/context/AuthContext";
 import CommentUpvoteDownvoteSelector from "@/components/UpvoteDownvote/CommentUpvoteDownvoteSelector";
 import UpvoteDownvoteSelector from "@/components/UpvoteDownvote/UpvoteDownvoteSelector";
+import {timeAgo} from "@/helper/date_helper";
 
 interface SelectedScamViewProps {
     selectedScam: Scam;
@@ -218,7 +219,7 @@ export default function SelectedScamView({selectedScam, handleCloseModal, handle
 
                                     {/* Comment Meta (timestamp and username) */}
                                     <div className="text-xs text-gray-500">
-                                        <span>{comment.timestamp.toLocaleString()}</span>
+                                        <span>{timeAgo(comment.timestamp)}</span>
                                         <span> &middot; by {comment.username}</span>
                                     </div>
                                 </div>

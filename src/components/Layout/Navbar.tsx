@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useAuthContext } from "@/context/AuthContext"; // Assuming AuthContext provides the user and logout function
 import { useRouter } from 'next/navigation';
 import { logout } from "@/firebase/auth/auth";
-import AccountButton from "@/components/Navbar/AccountNavbarButton";
+import AccountButton from "@/components/Layout/AccountNavbarButton";
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);

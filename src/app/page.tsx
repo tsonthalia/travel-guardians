@@ -5,7 +5,9 @@ import {downvotePressed, getFeed, upvotePressed, getPopularCities} from "@/fireb
 import {useAuthContext} from "@/context/AuthContext";
 import ScamCard from "@/components/Scam/ScamCard";
 import SelectedScamView from "@/components/Scam/SelectedScamView";
+import SearchBar from "@/components/Input/SearchBar";
 import Image from 'next/image';
+import PopularLocationCard from "@/components/Location/PopularLocationCard";
 
 export default function Feed() {
   const [feed, setFeed] = useState<Scam[]>([]);
@@ -160,42 +162,23 @@ export default function Feed() {
               <div className="max-w-2xl mx-auto mb-6">
                 <div className="grid grid-cols-4 gap-4 mb-4 justify-center">
                   {popularLocations.map((location, index) => (
-                      <div
+                      <PopularLocationCard
                           key={index}
-                          className="cursor-pointer relative w-full h-48 overflow-hidden"
-                          onClick={() => handlePopularLocationClick(location.city + ", " + location.country)}
-                      >
-                        <Image src={location.image_url ?? '/generic_city.jpeg'} alt={location.city} layout="fill" objectFit="cover" className="rounded-lg shadow-md" />
-                        <div className="absolute bottom-0 w-full bg-gradient-to-t from-black via-black/80 to-transparent py-1 rounded-b-lg">
-                          <p className="text-white text-sm mb-1 font-bold text-center px-1">{location.city + ", " + location.country}</p>
-                        </div>
-                      </div>
+                          index={index}
+                          location={location}
+                          handlePopularLocationClick={handlePopularLocationClick}
+                      />
                   ))}
                 </div>
               </div>
 
-              <div className="max-w-2xl mx-auto mb-6 relative" ref={autocompleteRef}>
-                <input
-                    type="text"
-                    className="w-full p-3 rounded-lg shadow-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Search by city, country..."
-                    value={searchQuery}
-                    onChange={(e) => handleUpdateSearchQuery(e.target.value)} // Update location search query
-                />
-                {filteredLocations.length > 0 && (
-                    <ul className="absolute w-full bg-white border border-gray-300 rounded-lg shadow-md max-h-40 overflow-y-auto z-10">
-                      {filteredLocations.map((location, index) => (
-                          <li
-                              key={index}
-                              className="p-2 hover:bg-gray-200 cursor-pointer"
-                              onClick={() => handleLocationSelect(location)}
-                          >
-                            {location}
-                          </li>
-                      ))}
-                    </ul>
-                )}
-              </div>
+              <SearchBar
+                  searchQuery={searchQuery}
+                  filteredLocations={filteredLocations}
+                  handleUpdateSearchQuery={handleUpdateSearchQuery}
+                  handleLocationSelect={handleLocationSelect}
+                  setFilteredLocations={setFilteredLocations}
+              />
 
               <div className="grid grid-cols-1 gap-8 max-w-2xl mx-auto">
                 {filteredFeed.length == 0 ? "No scams found." : filteredFeed.sort((a, b) => b.netvotes - a.netvotes).map((scam) => (

@@ -590,7 +590,7 @@ export default function CreatePostPage() {
                             name="description"
                             id="description"
                             rows={5}
-                            placeholder="Describe the scam or event"
+                            placeholder="Describe the scam or event and offer a solution if you have one"
                             className="mt-1 p-3 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                         />
                     </div>

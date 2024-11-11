@@ -1,6 +1,7 @@
 // ScamCard.tsx
 import {Scam, UserVoteDatum, VoteDatum} from "@/firebase/firestore/interfaces";
 import UpvoteDownvoteSelector from "@/components/UpvoteDownvote/UpvoteDownvoteSelector";
+import {timeAgo} from "@/helper/date_helper";
 import React, {useState} from "react";
 
 interface ScamCardProps {
@@ -26,7 +27,7 @@ export default function ScamCard(
     return (
         <div
             key={scam.id}
-            className="bg-gray-100 p-6 rounded-lg shadow-lg relative"
+            className="bg-gray-100 p-6 rounded-lg shadow-lg relative cursor-pointer hover:bg-gray-200"
             onClick={() => handleOpenModal(scam)}
         >
             {/* Upvote/Downvote Section */}
@@ -50,7 +51,7 @@ export default function ScamCard(
             Posted by <strong className="text-indigo-600">{scam.user}</strong>
           </span>
                     <span className="mx-2">•</span>
-                    <span>{scam.date.toDateString()}</span>
+                    <span>{timeAgo(scam.date)}</span>
                     <span className="mx-2">•</span>
                     <span>
             {scam.locations[0].city}, {scam.locations[0].country}
@@ -69,7 +70,7 @@ export default function ScamCard(
                     </svg>
 
                     {/* Replace with dynamic comment count */}
-                    <span>{scam.comments || 0} comments</span>
+                    <span>{scam.comments || 0} {scam.comments == 1 ? "comment" : "comments"}</span>
                 </div>
 
                 {allowDelete && (
