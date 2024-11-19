@@ -1,7 +1,7 @@
 // ScamCard.tsx
 import {Scam, UserVoteDatum, VoteDatum} from "@/firebase/firestore/interfaces";
 import UpvoteDownvoteSelector from "@/components/UpvoteDownvote/UpvoteDownvoteSelector";
-import {timeAgo} from "@/helper/date_helper";
+import {timeAgo, getShortenedScamLocationsString} from "@/helper/string_formatting";
 import React, {useState} from "react";
 
 interface ScamCardProps {
@@ -54,8 +54,8 @@ export default function ScamCard(
                     <span>{timeAgo(scam.date)}</span>
                     <span className="mx-2">•</span>
                     <span>
-            {scam.locations[0].city}, {scam.locations[0].country}
-          </span>
+                        {getShortenedScamLocationsString(scam.locations)}
+                    </span>
                 </div>
 
                 <div className="mt-4 flex items-center text-gray-500">

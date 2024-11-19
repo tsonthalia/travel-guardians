@@ -1,3 +1,5 @@
+import {ScamLocation} from "@/firebase/firestore/interfaces";
+
 export function timeAgo(date: Date): string {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
@@ -34,4 +36,23 @@ export function timeAgo(date: Date): string {
     }
 
     return seconds === 1 ? '1 second ago' : `${seconds} seconds ago`;
+}
+
+export function getShortenedScamLocationsString(locations: ScamLocation[]): string {
+    // Return a string of city, country for each location
+    // If string is too long, return ellipsis after 2 locations
+
+    if (locations.length === 0) {
+        return '';
+    } else if (locations.length === 1) {
+        return `${locations[0].city}, ${locations[0].country}`;
+    } else if (locations.length === 2) {
+        return `${locations[0].city}, ${locations[0].country} and ${locations[1].city}, ${locations[1].country}`;
+    } else {
+        return `${locations[0].city}, ${locations[0].country} and  ${locations.length - 1} more`;
+    }
+}
+
+export function getFullScamLocationsString(locations: ScamLocation[]): string {
+    return locations.map(location => `${location.city}, ${location.country}`).join('; ');
 }

@@ -4,7 +4,7 @@ import {addComment, deleteComment, downvoteCommentPressed, getComments, upvoteCo
 import {useAuthContext} from "@/context/AuthContext";
 import CommentUpvoteDownvoteSelector from "@/components/UpvoteDownvote/CommentUpvoteDownvoteSelector";
 import UpvoteDownvoteSelector from "@/components/UpvoteDownvote/UpvoteDownvoteSelector";
-import {timeAgo} from "@/helper/date_helper";
+import {getFullScamLocationsString, timeAgo} from "@/helper/string_formatting";
 
 interface SelectedScamViewProps {
     selectedScam: Scam;
@@ -173,18 +173,31 @@ export default function SelectedScamView({selectedScam, handleCloseModal, handle
                 <div className="ml-12">
                     <h3 className="text-xl font-bold text-indigo-600 mb-4">{selectedScam.title}</h3>
                     <p className="text-gray-700 mb-4">{selectedScam.description}</p>
+
+                    {/*  Scam meta */}
+                    <div className="flex flex-col items-start text-sm text-gray-500 mb-4">
+                        <div className="flex items-center mb-1">
+                            <span>
+                                Posted by <strong className="text-indigo-600">{selectedScam.user}</strong>
+                            </span>
+                            <span className="mx-2">•</span>
+                            <span>{timeAgo(selectedScam.date)}</span>
+                        </div>
+                        <span>{getFullScamLocationsString(selectedScam.locations)}</span>
+                    </div>
+
                 </div>
 
                 {/* Textbox for adding a comment */}
                 {(user?.user && user?.userData) ? (
                     <form onSubmit={handleSubmit} className="mb-4">
-                <textarea
-                    className="w-full p-2 border rounded-lg focus:outline-none focus:border-indigo-500"
-                    rows={3}
-                    placeholder="Add a comment..."
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                />
+                        <textarea
+                            className="w-full p-2 border rounded-lg focus:outline-none focus:border-indigo-500"
+                            rows={3}
+                            placeholder="Add a comment..."
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                        />
                         <button
                             type="submit"
                             className="mt-2 bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-500"

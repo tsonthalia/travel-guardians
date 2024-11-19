@@ -302,6 +302,27 @@ export async function createPost(title: string, description: string, locations: 
     await updateDoc(userDocRef, {
         createdPosts: [...createdPosts, scamDocRef.id],
     });
+
+    for (const location of formattedLocations) {
+        const cityDocumentRef = doc(collection(db, 'locations'), location.location_id);
+
+        const cityDocument = await getDoc(cityDocumentRef);
+        if (!cityDocument.exists()) {
+            throw new Error('City does not exist');
+        }
+
+        const { scams, scams_num } = cityDocument.data();
+        let newScams: string[] = scams ?? [];
+        newScams.push(scamDocRef.id);
+
+        let newScamsNum: number = scams_num ?? 0;
+        newScamsNum += 1;
+
+        await updateDoc(cityDocumentRef, {
+            scams: newScams,
+            scams_num: newScamsNum,
+        });
+    }
 }
 
 export async function getMyPosts(user_id: string) {
@@ -1117,7 +1138,7 @@ export async function getPopularCities() {
 
     let querySnapshot: QuerySnapshot<DocumentData, DocumentData>;
     // @ts-ignore
-    querySnapshot = await getDocs(query(locationsCollectionRef, orderBy('scams_num', 'desc'), limit(4))) as QuerySnapshot<DocumentData, DocumentData>;
+    querySnapshot = await getDocs(query(locationsCollectionRef, orderBy('scams_num', 'desc'), limit(12))) as QuerySnapshot<DocumentData, DocumentData>;
 
     const locations: CityLocation[] = [];
 

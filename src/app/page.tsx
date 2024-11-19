@@ -17,6 +17,7 @@ export default function Feed() {
   const [popularLocations, setPopularLocations] = useState<CityLocation[]>([]);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [selectedScam, setSelectedScam] = useState<Scam | null>(null);
+  const [showAllLocations, setShowAllLocations] = useState<boolean>(false); // Toggle to show all popular locations
 
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
@@ -27,7 +28,6 @@ export default function Feed() {
   const [downvotedScams, setDownvotedScams] = useState<UserVoteDatum[]>(
       user?.userData?.downvotedScams ? user?.userData?.downvotedScams : []
   );
-
 
   // get scam data using firebase function from firestore module
   useEffect(() => {
@@ -53,7 +53,7 @@ export default function Feed() {
 
   useEffect( () => {
     getPopularCities().then((cities) => {
-        setPopularLocations(cities);
+      setPopularLocations(cities);
     });
   })
 
@@ -154,6 +154,10 @@ export default function Feed() {
     setSelectedLocation(location);
   }
 
+  const toggleShowAllLocations = () => {
+    setShowAllLocations(!showAllLocations);
+  }
+
   return (
       <div className="min-h-screen bg-gray-100 flex flex-col justify-between">
         <main className="flex-grow">
@@ -161,7 +165,7 @@ export default function Feed() {
             <div className="container mx-auto px-6">
               <div className="max-w-2xl mx-auto mb-6">
                 <div className="grid grid-cols-4 gap-4 mb-4 justify-center">
-                  {popularLocations.map((location, index) => (
+                  {popularLocations.slice(0, showAllLocations ? popularLocations.length : 4).map((location, index) => (
                       <PopularLocationCard
                           key={index}
                           index={index}
@@ -169,6 +173,13 @@ export default function Feed() {
                           handlePopularLocationClick={handlePopularLocationClick}
                       />
                   ))}
+                </div>
+                <div className="flex justify-center">
+                  <button
+                      onClick={toggleShowAllLocations}
+                      className="text-blue-500 hover:underline">
+                    {showAllLocations ? 'Show Less' : 'Show More'}
+                  </button>
                 </div>
               </div>
 
